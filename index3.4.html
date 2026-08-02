@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Biologia - Trilha Completa Integrada</title>
+    <style>
+        html, body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #131F24; 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100dvh; 
+            overflow: hidden;
+        }
+
+        .phone-container { 
+            width: 100%; 
+            height: 100dvh; 
+            background: #131F24; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            position: relative; 
+        }
+
+        @media (min-width: 450px) {
+            .phone-container {
+                max-width: 380px;
+                height: 85vh;
+                border-radius: 30px;
+                border: 8px solid #333;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            }
+        }
+
+        /* MAPA */
+        #map-view { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; overflow: hidden; }
+        .map-header { padding: 15px 20px; display: flex; justify-content: flex-end; background: #131F24; border-bottom: 2px solid #2a3b45; font-weight: bold; font-size: 16px; color: #ff4b4b; flex-shrink: 0; }
+        .section-banner { background: #ff9600; margin: 15px; border-radius: 12px; padding: 15px; color: white; box-shadow: 0 4px 0 #cc7800; flex-shrink: 0; }
+        .section-banner h3 { margin: 0; font-size: 14px; text-transform: uppercase; }
+        .section-banner h2 { margin: 5px 0 0 0; font-size: 20px; }
+        .path-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; padding-top: 30px; overflow-y: auto; padding-bottom: 50px; -webkit-overflow-scrolling: touch; }
+        
+        /* NÓS DA TRILHA */
+        .node { width: 65px; height: 65px; border-radius: 50%; background: #2a3b45; border: 5px solid #3a4b55; margin-bottom: 35px; display: flex; justify-content: center; align-items: center; font-size: 26px; font-weight: bold; color: white; cursor: pointer; box-shadow: 0 6px 0 #1c2830; transition: all 0.2s; position: relative; z-index: 2; flex-shrink: 0; }
+        .node.active { background: #58cc02; border-color: #46a302; box-shadow: 0 6px 0 #3d8c01; animation: pulse 2s infinite; }
+        .node.locked { background: #2a3b45; border-color: #3a4b55; color: #557080; box-shadow: 0 6px 0 #1c2830; pointer-events: none; }
+        .node.completed { background: #ffc800; border-color: #e5b400; box-shadow: 0 6px 0 #cc9f00; color: white; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* BALÃO FLUTUANTE ADAPTATIVO */
+        .duo-popup {
+            display: none;
+            position: absolute;
+            background: #ff9600;
+            border-radius: 20px;
+            padding: 20px;
+            width: 260px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            color: white;
+            z-index: 100;
+            text-align: left;
+            animation: popUpAnim 0.2s ease-out;
+            border: 3px solid #e08500;
+        }
+        .duo-popup::after {
+            content: '';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 0 12px 12px 12px;
+            border-style: solid;
+            border-color: transparent transparent #ff9600 transparent;
+        }
+        .duo-popup.show-above::after {
+            top: auto;
+            bottom: -12px;
+            border-width: 12px 12px 0 12px;
+            border-color: #ff9600 transparent transparent transparent;
+        }
+
+        .duo-popup h3 { margin: 0 0 8px 0; font-size: 17px; font-weight: bold; }
+        .duo-popup p { margin: 0 0 15px 0; font-size: 13px; line-height: 1.4; opacity: 0.95; }
+        .duo-popup-btn {
+            background: white;
+            color: #ff9600;
+            border: none;
+            border-bottom: 4px solid #dcdcdc;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 14px;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            text-align: center;
+        }
+        @keyframes popUpAnim { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* TELA DE CARREGAMENTO */
+        #loading-view { display: none; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; background: #131F24; text-align: center; padding: 0 20px; box-sizing: border-box; }
+        .cell-animation { width: 140px; height: 140px; background: rgba(88, 204, 2, 0.1); border: 4px solid #58cc02; border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; position: relative; animation: morph 5s ease-in-out infinite; margin-bottom: 30px; box-shadow: 0 0 25px rgba(88, 204, 2, 0.2) inset; }
+        .nucleus { position: absolute; top: 25%; left: 20%; width: 50px; height: 50px; background: rgba(88, 204, 2, 0.4); border: 2px solid #58cc02; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
+        .nucleolus { width: 18px; height: 18px; background: #58cc02; border-radius: 50%; }
+        .mitochondria { position: absolute; width: 28px; height: 14px; border: 2px solid #58cc02; border-radius: 10px; background: rgba(88, 204, 2, 0.2); }
+        .m1 { top: 65%; left: 55%; transform: rotate(45deg); }
+        .m2 { top: 20%; left: 65%; transform: rotate(-20deg); }
+        @keyframes morph { 0%, 100% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; transform: scale(1) rotate(0deg); } 50% { border-radius: 70% 30% 50% 50% / 30% 30% 70% 70%; transform: scale(1.02) rotate(5deg); } }
+        .loading-text { font-size: 20px; font-weight: bold; color: #58cc02; margin-bottom: 10px; }
+        .loading-subtext { font-size: 13px; color: #a9a9a9; font-style: italic; line-height: 1.4; padding: 0 10px; }
+
+        /* TELA DE LIÇÃO */
+        #lesson-view { 
+            display: none; 
+            flex-direction: column; 
+            height: 100%; 
+            width: 100%; 
+            background: white; 
+            position: relative; 
+            box-sizing: border-box; 
+            overflow: hidden;
+        }
+        .lesson-header { 
+            padding: 15px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-shrink: 0; 
+            background: white; 
+            z-index: 10; 
+        }
+        .progress-bar { flex-grow: 1; height: 14px; background: #e0e0e0; border-radius: 7px; margin: 0 15px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #58cc02; width: 0%; transition: width 0.4s ease-out; }
+        
+        .lesson-content { 
+            padding: 10px 20px 130px 20px; 
+            flex-grow: 1; 
+            min-height: 0; 
+            display: flex; 
+            flex-direction: column; 
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch; 
+            box-sizing: border-box; 
+        }
+        .lesson-title { color: #3c3c3c; font-size: 20px; margin-top: 0; margin-bottom: 12px; font-weight: 700; }
+        .lesson-text { color: #555; font-size: 14px; line-height: 1.5; background: #f0f4f8; padding: 12px; border-radius: 12px; border-left: 5px solid #1cb0f6; margin-bottom: 15px; }
+        .lesson-img { width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; border: 1px solid #ddd; }
+        
+        .options { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .option-btn { background: white; border: 2px solid #e5e5e5; border-bottom-width: 4px; border-radius: 16px; padding: 14px; font-size: 14px; font-weight: bold; color: #4b4b4b; cursor: pointer; text-align: left; transition: all 0.1s; }
+        .option-btn.selected { background: #d7ffb8; border-color: #58cc02; color: #2b7000; }
+        
+        .lesson-footer { 
+            position: absolute; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            padding: 20px; 
+            box-sizing: border-box; 
+            border-top: 1px solid #eee; 
+            background: white; 
+            display: flex; 
+            justify-content: flex-end; 
+            z-index: 301; 
+        }
+        .action-btn { background: #58cc02; border: none; border-bottom: 4px solid #46a302; color: white; padding: 15px 30px; font-size: 16px; font-weight: bold; border-radius: 16px; cursor: pointer; width: 100%; text-transform: uppercase; }
+        .action-btn:disabled { background: #e5e5e5; border-bottom-color: #cecece; color: #afafaf; cursor: not-allowed; }
+        .action-btn.info-btn { background: #1cb0f6; border-bottom-color: #1899d6; }
+
+        .feedback-container {
+            display: none;
+            position: absolute;
+            bottom: 85px;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 20px 24px;
+            z-index: 300;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            animation: slideUpPanel 0.25s ease-out;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
+        }
+        .feedback-container.correct { background-color: #d7ffb8; border-top: 5px solid #58cc02; }
+        .feedback-container.incorrect { background-color: #ffdfe0; border-top: 5px solid #ff4b4b; }
+        .feedback-header { display: flex; align-items: center; font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+        .feedback-container.correct .feedback-header { color: #2b7000; }
+        .feedback-container.incorrect .feedback-header { color: #ea2b2b; }
+        .feedback-body { font-size: 15px; font-weight: 600; }
+        .feedback-container.correct .feedback-body { color: #3c8c00; }
+        .feedback-container.incorrect .feedback-body { color: #d32f2f; }
+
+        @keyframes slideUpPanel {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-container">
+        <!-- MAPA -->
+        <div id="map-view">
+            <div class="map-header"><span id="map-lives">❤️ 5</span></div>
+            <div class="section-banner">
+                <h3>Seção 1, Módulo 1</h3>
+                <h2>Introdução à Biologia Celular</h2>
+            </div>
+            
+            <div class="path-container" id="path-scroll-area">
+                <div class="node active" id="node-1" onclick="openPreview(1, event)" style="margin-left: 0px;">1</div>
+                <div class="node locked" id="node-2" onclick="openPreview(2, event)" style="margin-left: 70px;">2</div>
+                <div class="node locked" id="node-3" onclick="openPreview(3, event)" style="margin-right: 60px;">3</div>
+                <div class="node locked" id="node-4" onclick="openPreview(4, event)" style="margin-left: 30px;">4</div>
+                <div class="node locked" id="node-5" onclick="openPreview(5, event)" style="margin-left: -50px;">👑</div>
+            </div>
+
+            <div id="duo-card" class="duo-popup">
+                <h3 id="pop-title">Título da Aula</h3>
+                <p id="pop-desc">Descrição da aula.</p>
+                <button class="duo-popup-btn" onclick="startLoadingAndLesson()">CONTINUAR</button>
+            </div>
+        </div>
+
+        <!-- TELA DE CARREGAMENTO -->
+        <div id="loading-view">
+            <div class="cell-animation">
+                <div class="nucleus"><div class="nucleolus"></div></div>
+                <div class="mitochondria m1"></div>
+                <div class="mitochondria m2"></div>
+            </div>
+            <div class="loading-text">Preparando sua aula...</div>
+            <div class="loading-subtext" id="quote-container">...</div>
+        </div>
+
+        <!-- LIÇÃO PASSO A PASSO -->
+        <div id="lesson-view">
+            <div class="lesson-header">
+                <span style="cursor: pointer; font-weight: bold; color: #afafaf; font-size: 20px;" onclick="quitLesson()">✕</span>
+                <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+                <span style="font-weight: bold; color: #ff4b4b; font-size: 16px;" id="lesson-lives">❤️ 5</span>
+            </div>
+            <div class="lesson-content" id="quiz-container"></div>
+            <div id="feedback-area" class="feedback-container"></div>
+            <div class="lesson-footer">
+                <button class="action-btn" id="next-btn" onclick="handleNextClick()" disabled>VERIFICAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lives = 5;
+        let currentStep = 0;
+        let selectedOption = null;
+        let answered = false;
+        let lessonSteps = [];
+        let currentNodePlaying = 1;
+        let errorsInSession = 0;
+
+        const biologyQuotes = [
+            '"A célula é a menor unidade morfológica e funcional dos seres vivos."',
+            '"Na natureza, a complexidade celular reflete a evolução biológica."'
+        ];
+
+        const previewData = {
+            1: { title: "Lição 1 de 5", desc: "Introdução ao Estudo das Células: Teoria Celular, Procariontes e Eucariontes." },
+            2: { title: "Lição 2 de 5", desc: "Membrana Plasmática: Estrutura, Mosaico Fluido e Transportes." },
+            3: { title: "Lição 3 de 5", desc: "Sistemas de Endomembranas: Retículo Endoplasmático, Golgi e Lisossomos." },
+            4: { title: "Lição 4 de 5", desc: "Bioenergética e Metabolismo: Mitocôndrias e Peroxissomos." },
+            5: { title: "Avaliação Final", desc: "Revisão interativa em conversa e prova final com 10 questões!" }
+        };
+
+        function formatTextWithBold(text) {
+            const keywords = ["célula", "células", "membrana plasmática", "proteínas", "mitocôndrias", "ATP", "metabolismo", "núcleo", "vírus", "lisossomos", "ribossomos"];
+            let formatted = text;
+            keywords.forEach(kw => {
+                const regex = new RegExp(`\\b(${kw})\\b`, 'gi');
+                formatted = formatted.replace(regex, '<b>$1</b>');
+            });
+            return formatted;
+        }
+
+        const structuredLessons = {
+            1: [
+                { type: "info", title: "Conceito e Teoria Celular", text: "A célula é a menor unidade estrutural e funcional dos seres vivos. Robert Hooke descobriu a célula em 1665 ao examinar cortiça.", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Procariontes e Eucariontes", text: "Os procariontes não possuem núcleo delimitado por membrana, enquanto os eucariontes contêm núcleo e organelas membranosas complexas.", img: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "O que Robert Hooke descobriu em 1655 ao examinar uma cortiça com um microscópio primitivo?", options: ["As células, pequenas cavidades semelhantes a celas", "Os vírus e bactérias patogênicas", "Os ácidos nucléicos e mitocôndrias"], correct: 0 },
+                { type: "quiz", title: "Qual é a principal característica que diferencia os vírus de todos os outros seres vivos?", options: ["São acelulares e parasitas intracelulares obrigatórios", "Possuem organização celular autônoma completa", "Realizam fotossíntese de forma independente"], correct: 0 },
+                { type: "quiz", title: "Qual das alternativas apresenta uma característica típica das células procariontes?", options: ["Ausência de núcleo delimitado por membrana e ausência de organelas membranosas", "Presença de múltiplos cromossomos lineares", "Divisão celular por mitose e meiose"], correct: 0 },
+                { type: "quiz", title: "O que propõe a hipótese endossimbiótica sobre a origem das mitocôndrias e cloroplastos?", options: ["Surgiram a partir de bactérias fagocitadas que se estabeleceram como simbiontes", "Formaram-se por invaginações sucessivas da membrana plasmática", "Derivam diretamente do retículo endoplasmático liso"], correct: 0 },
+                { type: "quiz", title: "Qual dos seguintes reinos da classificação moderna engloba as bactérias e cianobactérias?", options: ["Reino Monera", "Reino Protista", "Reino Fungi"], correct: 0 }
+            ],
+            2: [
+                { type: "info", title: "Estrutura da Membrana Plasmática", text: "A membrana plasmática é constituída por uma bicamada lipídica contínua com proteínas inseridas, apresentando aspecto trilaminar ao microscópio eletrônico.", img: "https://images.unsplash.com/photo-1579165466941-2f91e65f74cb?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Mosaico Fluido e Transportes", text: "Proposto por Singer e Nicholson em 1972, o modelo do mosaico fluido explica a mobilidade de lipídios e proteínas na membrana.", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "Como é descrita a estrutura da membrana plasmática observada ao microscópio eletrônico?", options: ["Estrutura trilaminar, com duas faixas escuras e uma faixa central clara", "Uma camada simples contínua de proteínas", "Uma bicamada exclusiva de carboidratos"], correct: 0 },
+                { type: "quiz", title: "Qual modelo de arquitetura molecular da membrana plasmática é o mais aceito atualmente?", options: ["Modelo do mosaico fluido", "Modelo sanduíche de proteínas estáticas", "Modelo rígido de parede celular celulósica"], correct: 0 },
+                { type: "quiz", title: "O que caracteriza o transporte passivo por difusão simples através da membrana?", options: ["Movimento de substâncias a favor do gradiente de concentração sem gasto de energia", "Movimento contra o gradiente de concentração com gasto de ATP", "Exclusivo para macromoléculas polares carregadas"], correct: 0 },
+                { type: "quiz", title: "Qual é a principal função das junções do tipo desmossomos nas células animais?", options: ["Unir fortemente as células vizinhas, conferindo grande resistência mecânica", "Vedar completamente o espaço intercelular impedindo solutos", "Estabelecer canais iônicos de comunicação direta"], correct: 0 },
+                { type: "quiz", title: "O que ocorre com a água durante o processo de osmose?", options: ["Move-se do meio hipotônico para o hipertônico através de membrana semipermeável", "Move-se do meio hipertônico para o hipotônico com gasto de ATP", "Fica estagnada sem atravessar a bicamada"], correct: 0 }
+            ],
+            3: [
+                { type: "info", title: "Retículo Endoplasmático", text: "O RER possui ribossomos aderidos e atua na síntese e processamento de proteínas, enquanto o REL sintetiza lipídios.", img: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Complexo de Golgi e Lisossomos", text: "O Golgi modifica proteínas e empacota enzimas para os lisossomos, que realizam a digestão celular com hidrolases ácidas.", img: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "Qual é a principal função atribuída ao Retículo Endoplasmático Rugoso (RER)?", options: ["A síntese, processamento e distribuição de proteínas", "A síntese exclusiva de lipídios e esteróides", "A digestão intracelular de organelas envelhecidas"], correct: 0 },
+                { type: "quiz", title: "Como o complexo de Golgi está estruturalmente organizado?", options: ["Por pilhas de sacos membranosos achatados (cisternas) com polaridade cis e trans", "Por túbulos isolados sem conexão com o núcleo", "Por uma membrana dupla contínua cheia de ribossomos"], correct: 0 },
+                { type: "quiz", title: "Qual é o papel enzimático característico dos lisossomos?", options: ["Conter hidrolases ácidas ativas em pH ácido para a digestão celular", "Produzir ATP através da fosforilação oxidativa nas cristas", "Sintetizar hormônios esteróides a partir do colesterol"], correct: 0 },
+                { type: "quiz", title: "Como as proteínas destinadas aos lisossomos são marcadas especificamente no Golgi?", options: ["Pela adição de grupos manose-6-fosfato", "Pela adição de lipídios insaturados na membrana trans", "Pela clivagem de peptídeos sinalizadores de actina"], correct: 0 },
+                { type: "quiz", title: "O que caracteriza o processo de autofagia realizado pelos lisossomos?", options: ["A remoção e digestão de elementos da própria célula envolvidos por membranas do REL", "A fagocitose de bactérias externas invasoras", "A eliminação de neurotransmissores por exocitose"], correct: 0 }
+            ],
+            4: [
+                { type: "info", title: "Mitocôndrias e ATP", text: "As mitocôndrias geram ATP através da respiração aeróbica e fosforilação oxidativa nas cristas mitocondriais.", img: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Peroxissomos", text: "Os peroxissomos contêm enzimas oxidativas produtoras de peróxido de hidrogênio e catalase, decompondo-o em água.", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "Qual é a principal função das mitocôndrias nas células eucariontes?", options: ["A geração de energia útil (ATP) através da respiração aeróbica e fosforilação oxidativa", "A realização exclusiva da fotossíntese luminosa", "O armazenamento de íons de cálcio para a síntese de carboidratos"], correct: 0 },
+                { type: "quiz", title: "Onde ocorre a etapa do ciclo do ácido cítrico (ciclo de Krebs) nas mitocôndrias?", options: ["Na matriz mitocondrial", "No espaço intermembranas", "Na membrana plasmática externa"], correct: 0 },
+                { type: "quiz", title: "Qual é o papel da proteína termogenina encontrada em tecidos adiposos especiais?", options: ["Funcionar como uma válvula que dissipa energia na forma de calor em vez de sintetizar ATP", "Aumentar a velocidade de replicação do DNA mitocondrial", "Transportar glicose ativamente contra o gradiente"], correct: 0 },
+                { type: "quiz", title: "O que caracteriza estruturalmente e funcionalmente os peroxissomos?", options: ["Vesículas com enzimas oxidativas produtoras de peróxido de hidrogênio e catalase", "Organelas produtoras de ATP equipadas com cristas internas", "Sítios exclusivos de transcrição do RNA ribossômico"], correct: 0 },
+                { type: "quiz", title: "O que diferencia a montagem dos peroxissomos em relação aos lisossomos?", options: ["São montados a partir de proteínas sintetizadas em ribossomos livres e importadas completas", "Derivam diretamente do brotamento da face trans do Golgi", "Possuem genoma circular próprio idêntico ao das bactérias"], correct: 0 }
+            ],
+            5: [
+                { type: "info", title: "💬 Conversa de Revisão", text: "<b>Professor:</b> Olá! Vamos revisar os principais conceitos do Módulo 1.<br><br><b>Aluno:</b> Vimos que a célula é a unidade fundamental e que procariontes e eucariontes diferem pela presença de núcleo.", img: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "💬 Conversa de Revisão", text: "<b>Professor:</b> Perfeito! E sobre membranas, organelas e bioenergética?<br><br><b>Aluno:</b> A membrana segue o mosaico fluido, as endomembranas processam proteínas e as mitocôndrias geram ATP!", img: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "[Avaliação 1/10] Segundo a Teoria Celular clássica, qual é a afirmativa correta?", options: ["As células são as unidades morfológicas e fisiológicas de todos os organismos vivos", "Os vírus são considerados a menor unidade viva autônoma", "As células surgem espontaneamente da matéria inorgânica"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 2/10] Qual estrutura diferencia fundamentalmente as células vegetais das animais?", options: ["A presença de parede celular, vacúolos e plastídios", "A presença de núcleo delimitado por envoltório nuclear", "A presença de mitocôndrias produtoras de ATP"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 3/10] O que garante a seletividade e fluidez da membrana plasmática?", options: ["A bicamada de fosfolipídios associada a proteínas integrais e periféricas móveis", "A rigidez absoluta de uma camada contínua de celulose", "A ausência total de lipídios polares na estrutura"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 4/10] Como os íons de sódio e potássio são transportados ativamente contra seus gradientes?", options: ["Pela bomba de Na+/K+ com consumo de energia de ATP", "Por difusão simples através da bicamada lipídica", "Exclusivamente por osmose passiva em meios isotônicos"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 5/10] Qual organela atua na destoxicação de drogas e síntese de lipídios?", options: ["Retículo endoplasmático liso (REL)", "Nucléolo interfásico", "Complexo de Golgi (face cis)"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 6/10] Qual é o papel da cadeia transportadora de elétrons na mitocôndria?", options: ["Bombear prótons para gerar um gradiente eletroquímico utilizado pela ATP-sintase", "Realizar a glicólise anaeróbia gerando piruvato", "Sintetizar glicogênio a partir de ácidos graxos livres"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 7/10] O que são os microfilamentos que compõem o citoesqueleto?", options: ["Filamentos de actina finos e flexíveis associados à forma e ao movimento celular", "Cilindros ocos de tubulina formados por 13 protofilamentos", "Fibras grossas de queratina resistentes à tração mecânica"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 8/10] Qual é a principal função da lâmina nuclear subjacente ao núcleo?", options: ["Fornecer suporte estrutural ao envoltório nuclear e auxiliar na fixação da cromatina", "Realizar a síntese das subunidades ribossomais 40S e 60S", "Secretar lipídios complexos para a matriz extracelular"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 9/10] O que caracteriza a heterocromatina em comparação com a eucromatina?", options: ["Encontra-se altamente condensada e inativa para a transcrição", "Está descondensada e ativa na transcrição de genes", "É exclusiva de células procariontes e vírus"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 10/10] Durante qual fase do ciclo celular ocorre a duplicação do DNA nuclear?", options: ["Na fase S (síntese) da interfase", "Na fase M (mitose) durante a metáfase", "Na fase G2 de preparação final"], correct: 0 }
+            ]
+        };
+
+        function openPreview(nodeId, event) {
+            currentNodePlaying = nodeId;
+            const data = previewData[nodeId];
+            const card = document.getElementById('duo-card');
+            
+            document.getElementById('pop-title').innerText = data.title;
+            document.getElementById('pop-desc').innerText = data.desc;
+
+            card.style.display = 'block';
+
+            const rect = event.target.getBoundingClientRect();
+            const containerRect = document.querySelector('.phone-container').getBoundingClientRect();
+            const cardHeight = card.offsetHeight || 160;
+
+            let topPos;
+            let leftPos = (rect.left + rect.right) / 2 - containerRect.left - 130;
+
+            if (leftPos < 10) leftPos = 10;
+            if (leftPos > 90) leftPos = 90;
+
+            const spaceBelow = containerRect.bottom - rect.bottom;
+
+            if (spaceBelow < cardHeight + 20) {
+                topPos = rect.top - containerRect.top - cardHeight - 12;
+                card.classList.add('show-above');
+            } else {
+                topPos = rect.bottom - containerRect.top + 12;
+                card.classList.remove('show-above');
+            }
+
+            card.style.top = `${topPos}px`;
+            card.style.left = `${leftPos}px`;
+        }
+
+        document.getElementById('map-view').addEventListener('click', function(e) {
+            if (!e.target.classList.contains('node') && !e.target.closest('#duo-card')) {
+                document.getElementById('duo-card').style.display = 'none';
+            }
+        });
+
+        function startLoadingAndLesson() {
+            document.getElementById('duo-card').style.display = 'none';
+            errorsInSession = 0;
+            document.getElementById('quote-container').innerHTML = biologyQuotes[Math.floor(Math.random() * biologyQuotes.length)];
+            document.getElementById('map-view').style.display = 'none';
+            document.getElementById('loading-view').style.display = 'flex';
+
+            setTimeout(() => {
+                let rawSteps = structuredLessons[currentNodePlaying];
+                let formattedSteps = rawSteps.map(step => step.type === "info" ? { ...step, text: formatTextWithBold(step.text) } : step);
+
+                lessonSteps = [...formattedSteps, { type: "reward", title: "Módulo Concluído!", text: "Excelente! Você concluiu todas as etapas e conquistou sua coroa." }];
+                
+                document.getElementById('loading-view').style.display = 'none';
+                document.getElementById('lesson-view').style.display = 'flex';
+                currentStep = 0;
+                renderStep();
+            }, 1500);
+        }
+
+        function quitLesson() {
+            errorsInSession = 0;
+            document.getElementById('map-view').style.display = 'flex';
+            document.getElementById('lesson-view').style.display = 'none';
+        }
+
+        function completeAndUnlockNext() {
+            const currentBtn = document.getElementById(`node-${currentNodePlaying}`);
+            if (currentBtn) {
+                currentBtn.classList.remove('active');
+                currentBtn.classList.add('completed');
+                currentBtn.innerHTML = currentNodePlaying === 5 ? '👑' : '⭐'; 
+            }
+
+            const nextBtn = document.getElementById(`node-${currentNodePlaying + 1}`);
+            if (nextBtn) {
+                nextBtn.classList.remove('locked');
+                nextBtn.classList.add('active');
+            }
+
+            quitLesson();
+        }
+
+        function renderStep() {
+            const container = document.getElementById('quiz-container');
+            const progressFill = document.getElementById('progress');
+            const nextBtn = document.getElementById('next-btn');
+            const feedbackArea = document.getElementById('feedback-area');
+            
+            feedbackArea.style.display = 'none';
+            selectedOption = null;
+            answered = false;
+
+            const step = lessonSteps[currentStep];
+            progressFill.style.width = `${(currentStep / (lessonSteps.length - 1)) * 100}%`;
+
+            if (step.type === "info") {
+                let imgHtml = step.img ? `<img src="${step.img}" class="lesson-img" alt="Ilustração">` : '';
+                container.innerHTML = `<h2 class="lesson-title">${step.title}</h2>${imgHtml}<div class="lesson-text">${step.text}</div>`;
+                nextBtn.innerText = "ENTENDI";
+                nextBtn.className = "action-btn info-btn";
+                nextBtn.disabled = false;
+            } else if (step.type === "quiz") {
+                let html = `<h2 class="lesson-title">${step.title}</h2><div class="options">`;
+                step.options.forEach((opt, idx) => {
+                    html += `<button class="option-btn" onclick="selectOption(${idx}, this)">${opt}</button>`;
+                });
+                container.innerHTML = html + `</div>`;
+                nextBtn.innerText = "VERIFICAR";
+                nextBtn.className = "action-btn";
+                nextBtn.disabled = true;
+            } else {
+                container.innerHTML = `<div style="text-align:center; margin-top:20px;"><h1 style="font-size: 45px; margin: 0;">👑</h1><h2 class="lesson-title">${step.title}</h2><p style="color:#666; font-size:14px;">${step.text}</p></div>`;
+                nextBtn.innerText = "FINALIZAR";
+                nextBtn.className = "action-btn";
+                nextBtn.disabled = false;
+            }
+        }
+
+        function selectOption(idx, el) {
+            if (answered) return;
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedOption = idx;
+            document.getElementById('next-btn').disabled = false;
+        }
+
+        function handleNextClick() {
+            const step = lessonSteps[currentStep];
+            if (step.type === "info") {
+                currentStep++; renderStep();
+            } else if (step.type === "quiz") {
+                if (!answered) checkAnswer();
+                else { currentStep++; renderStep(); }
+            } else {
+                completeAndUnlockNext();
+            }
+        }
+
+        function checkAnswer() {
+            const step = lessonSteps[currentStep];
+            const feedbackArea = document.getElementById('feedback-area');
+            const nextBtn = document.getElementById('next-btn');
+
+            answered = true;
+            feedbackArea.style.display = 'block';
+
+            if (selectedOption === step.correct) {
+                feedbackArea.className = "feedback-container correct";
+                feedbackArea.innerHTML = `
+                    <div class="feedback-header">✨ Excelente!</div>
+                    <div class="feedback-body">Você acertou a questão com precisão.</div>
+                `;
+                nextBtn.innerText = "CONTINUAR";
+                nextBtn.style.background = "#58cc02";
+                nextBtn.style.borderColor = "#46a302";
+            } else {
+                lives--;
+                errorsInSession++;
+                document.getElementById('lesson-lives').innerText = `❤️ ${lives}`;
+                document.getElementById('map-lives').innerText = `❤️ ${lives}`;
+                
+                feedbackArea.className = "feedback-container incorrect";
+                feedbackArea.innerHTML = `
+                    <div class="feedback-header">❌ Resposta incorreta</div>
+                    <div class="feedback-body">A resposta certa era: <b>${step.options[step.correct]}</b></div>
+                `;
+                nextBtn.innerText = "ENTENDI";
+                nextBtn.style.background = "#ff4b4b";
+                nextBtn.style.borderColor = "#ea2b2b";
+                
+                if (lives <= 0) {
+                    alert("Você ficou sem vidas! Voltando para o mapa...");
+                    lives = 5;
+                    document.getElementById('lesson-lives').innerText = `❤️ ${lives}`;
+                    document.getElementById('map-lives').innerText = `❤️ ${lives}`;
+                    quitLesson();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
