@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Biologia - Trilha Completa Integrada</title>
+    <title>App Biologia - Com Perfil e Login</title>
+    
+    <!-- Firebase SDKs (Compat versão 10) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
     <style>
         html, body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -37,73 +43,81 @@
             }
         }
 
-        /* MAPA */
-        #map-view { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; overflow: hidden; }
-        .map-header { padding: 15px 20px; display: flex; justify-content: flex-end; background: #131F24; border-bottom: 2px solid #2a3b45; font-weight: bold; font-size: 16px; color: #ff4b4b; flex-shrink: 0; }
-        .section-banner { background: #ff9600; margin: 15px; border-radius: 12px; padding: 15px; color: white; box-shadow: 0 4px 0 #cc7800; flex-shrink: 0; }
-        .section-banner h3 { margin: 0; font-size: 14px; text-transform: uppercase; }
-        .section-banner h2 { margin: 5px 0 0 0; font-size: 20px; }
-        .path-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; padding-top: 30px; overflow-y: auto; padding-bottom: 50px; -webkit-overflow-scrolling: touch; }
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .view-screen {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            box-sizing: border-box;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .map-header { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; background: #131F24; border-bottom: 2px solid #2a3b45; font-weight: bold; font-size: 14px; color: white; flex-shrink: 0; }
         
-        /* NÓS DA TRILHA */
-        .node { width: 65px; height: 65px; border-radius: 50%; background: #2a3b45; border: 5px solid #3a4b55; margin-bottom: 35px; display: flex; justify-content: center; align-items: center; font-size: 26px; font-weight: bold; color: white; cursor: pointer; box-shadow: 0 6px 0 #1c2830; transition: all 0.2s; position: relative; z-index: 2; flex-shrink: 0; }
+        .section-banner { background: #ff9600; margin: 15px 15px 5px 15px; border-radius: 12px; padding: 12px 15px; color: white; box-shadow: 0 4px 0 #cc7800; flex-shrink: 0; }
+        .section-banner.module-2 { background: #58cc02; box-shadow: 0 4px 0 #46a302; margin-top: 30px; }
+        .section-banner h3 { margin: 0; font-size: 13px; text-transform: uppercase; }
+        .section-banner h2 { margin: 4px 0 0 0; font-size: 18px; }
+
+        .path-container { display: flex; flex-direction: column; align-items: center; padding-top: 20px; padding-bottom: 40px; }
+        
+        .node { width: 65px; height: 65px; border-radius: 50%; background: #2a3b45; border: 5px solid #3a4b55; margin-bottom: 30px; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; color: white; cursor: pointer; box-shadow: 0 6px 0 #1c2830; transition: all 0.2s; position: relative; z-index: 2; flex-shrink: 0; }
         .node.active { background: #58cc02; border-color: #46a302; box-shadow: 0 6px 0 #3d8c01; animation: pulse 2s infinite; }
         .node.locked { background: #2a3b45; border-color: #3a4b55; color: #557080; box-shadow: 0 6px 0 #1c2830; pointer-events: none; }
         .node.completed { background: #ffc800; border-color: #e5b400; box-shadow: 0 6px 0 #cc9f00; color: white; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* BALÃO FLUTUANTE ADAPTATIVO */
-        .duo-popup {
-            display: none;
-            position: absolute;
-            background: #ff9600;
-            border-radius: 20px;
-            padding: 20px;
-            width: 260px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-            color: white;
-            z-index: 100;
-            text-align: left;
-            animation: popUpAnim 0.2s ease-out;
-            border: 3px solid #e08500;
-        }
-        .duo-popup::after {
-            content: '';
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 0 12px 12px 12px;
-            border-style: solid;
-            border-color: transparent transparent #ff9600 transparent;
-        }
-        .duo-popup.show-above::after {
-            top: auto;
-            bottom: -12px;
-            border-width: 12px 12px 0 12px;
-            border-color: #ff9600 transparent transparent transparent;
-        }
+        #progress-view { background: #131F24; padding: 20px; text-align: center; }
+        .progress-header-title { font-size: 22px; font-weight: bold; color: white; margin-top: 10px; }
+        .progress-sub { font-size: 14px; color: #8899a6; margin-top: 5px; margin-bottom: 25px; }
+        .progress-card { background: #1a2b32; border: 2px solid #2a3b45; border-radius: 20px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .progress-card h3 { margin: 0 0 10px 0; font-size: 18px; color: white; }
+        .progress-card p { color: #b0c4de; font-size: 14px; margin-bottom: 20px; }
+        
+        .circle-container { position: relative; width: 130px; height: 130px; margin: 0 auto 20px auto; }
+        .circular-chart { display: block; max-width: 100%; max-height: 100%; }
+        .circle-bg { fill: none; stroke: #2a3b45; stroke-width: 3.8; }
+        .circle { fill: none; stroke: #58cc02; stroke-width: 3.8; stroke-linecap: round; transition: stroke-dasharray 0.6s ease; }
+        .percentage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; font-weight: bold; color: white; }
 
+        #profile-view { background: #131F24; padding: 25px 20px; text-align: center; box-sizing: border-box; }
+        .profile-avatar-container { width: 90px; height: 90px; border-radius: 50%; background: #2a3b45; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; font-size: 40px; border: 3px solid #58cc02; overflow: hidden; }
+        .profile-avatar-container img { width: 100%; height: 100%; object-fit: cover; }
+        .profile-name { font-size: 20px; font-weight: bold; color: white; margin-bottom: 25px; }
+        
+        .profile-card { background: #1a2b32; border: 2px solid #2a3b45; border-radius: 20px; padding: 20px; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 15px; }
+        .profile-card h4 { margin: 0 0 5px 0; font-size: 16px; color: white; }
+        .profile-card p { margin: 0; font-size: 13px; color: #8899a6; }
+        
+        .profile-progress-bar { width: 100%; height: 10px; background: #2a3b45; border-radius: 5px; margin-top: 15px; overflow: hidden; }
+        .profile-progress-fill { height: 100%; background: #58cc02; width: 0%; transition: width 0.4s ease; }
+
+        .google-login-box { background: #1a2b32; border: 2px solid #2a3b45; border-radius: 20px; padding: 30px; text-align: center; margin-top: 40px; }
+        .google-btn-large { background: white; color: #333; border: none; padding: 12px 20px; border-radius: 12px; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 4px 0 #ccc; margin-top: 15px; width: 100%; }
+
+        .bottom-nav { height: 65px; background: #1a2b32; border-top: 2px solid #2a3b45; display: flex; justify-content: space-around; align-items: center; z-index: 400; flex-shrink: 0; }
+        .nav-item { background: none; border: none; font-size: 24px; cursor: pointer; padding: 10px; opacity: 0.5; transition: opacity 0.2s; }
+        .nav-item.active { opacity: 1; }
+
+        .duo-popup { display: none; position: absolute; background: #ff9600; border-radius: 20px; padding: 20px; width: 260px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); color: white; z-index: 600; text-align: left; animation: popUpAnim 0.2s ease-out; border: 3px solid #e08500; }
+        .duo-popup::after { content: ''; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); border-width: 0 12px 12px 12px; border-style: solid; border-color: transparent transparent #ff9600 transparent; }
+        .duo-popup.show-above::after { top: auto; bottom: -12px; border-width: 12px 12px 0 12px; border-color: #ff9600 transparent transparent transparent; }
         .duo-popup h3 { margin: 0 0 8px 0; font-size: 17px; font-weight: bold; }
         .duo-popup p { margin: 0 0 15px 0; font-size: 13px; line-height: 1.4; opacity: 0.95; }
-        .duo-popup-btn {
-            background: white;
-            color: #ff9600;
-            border: none;
-            border-bottom: 4px solid #dcdcdc;
-            padding: 12px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 14px;
-            cursor: pointer;
-            width: 100%;
-            text-transform: uppercase;
-            text-align: center;
-        }
+        .duo-popup-btn { background: white; color: #ff9600; border: none; border-bottom: 4px solid #dcdcdc; padding: 12px; font-size: 14px; font-weight: bold; border-radius: 14px; cursor: pointer; width: 100%; text-transform: uppercase; text-align: center; }
         @keyframes popUpAnim { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        /* TELA DE CARREGAMENTO */
-        #loading-view { display: none; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; background: #131F24; text-align: center; padding: 0 20px; box-sizing: border-box; }
+        #loading-view { display: none; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; background: #131F24; text-align: center; padding: 0 20px; box-sizing: border-box; position: absolute; top:0; left:0; z-index: 650; }
         .cell-animation { width: 140px; height: 140px; background: rgba(88, 204, 2, 0.1); border: 4px solid #58cc02; border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; position: relative; animation: morph 5s ease-in-out infinite; margin-bottom: 30px; box-shadow: 0 0 25px rgba(88, 204, 2, 0.2) inset; }
         .nucleus { position: absolute; top: 25%; left: 20%; width: 50px; height: 50px; background: rgba(88, 204, 2, 0.4); border: 2px solid #58cc02; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
         .nucleolus { width: 18px; height: 18px; background: #58cc02; border-radius: 50%; }
@@ -114,78 +128,23 @@
         .loading-text { font-size: 20px; font-weight: bold; color: #58cc02; margin-bottom: 10px; }
         .loading-subtext { font-size: 13px; color: #a9a9a9; font-style: italic; line-height: 1.4; padding: 0 10px; }
 
-        /* TELA DE LIÇÃO */
-        #lesson-view { 
-            display: none; 
-            flex-direction: column; 
-            height: 100%; 
-            width: 100%; 
-            background: white; 
-            position: relative; 
-            box-sizing: border-box; 
-            overflow: hidden;
-        }
-        .lesson-header { 
-            padding: 15px 20px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            flex-shrink: 0; 
-            background: white; 
-            z-index: 10; 
-        }
+        #lesson-view { display: none; flex-direction: column; height: 100%; width: 100%; background: white; position: absolute; top: 0; left: 0; box-sizing: border-box; overflow: hidden; z-index: 700; }
+        .lesson-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background: white; z-index: 10; }
         .progress-bar { flex-grow: 1; height: 14px; background: #e0e0e0; border-radius: 7px; margin: 0 15px; overflow: hidden; }
         .progress-fill { height: 100%; background: #58cc02; width: 0%; transition: width 0.4s ease-out; }
-        
-        .lesson-content { 
-            padding: 10px 20px 130px 20px; 
-            flex-grow: 1; 
-            min-height: 0; 
-            display: flex; 
-            flex-direction: column; 
-            overflow-y: auto; 
-            -webkit-overflow-scrolling: touch; 
-            box-sizing: border-box; 
-        }
+        .lesson-content { padding: 10px 20px 130px 20px; flex-grow: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
         .lesson-title { color: #3c3c3c; font-size: 20px; margin-top: 0; margin-bottom: 12px; font-weight: 700; }
         .lesson-text { color: #555; font-size: 14px; line-height: 1.5; background: #f0f4f8; padding: 12px; border-radius: 12px; border-left: 5px solid #1cb0f6; margin-bottom: 15px; }
         .lesson-img { width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; border: 1px solid #ddd; }
-        
         .options { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
         .option-btn { background: white; border: 2px solid #e5e5e5; border-bottom-width: 4px; border-radius: 16px; padding: 14px; font-size: 14px; font-weight: bold; color: #4b4b4b; cursor: pointer; text-align: left; transition: all 0.1s; }
         .option-btn.selected { background: #d7ffb8; border-color: #58cc02; color: #2b7000; }
-        
-        .lesson-footer { 
-            position: absolute; 
-            bottom: 0; 
-            left: 0; 
-            width: 100%; 
-            padding: 20px; 
-            box-sizing: border-box; 
-            border-top: 1px solid #eee; 
-            background: white; 
-            display: flex; 
-            justify-content: flex-end; 
-            z-index: 301; 
-        }
+        .lesson-footer { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px; box-sizing: border-box; border-top: 1px solid #eee; background: white; display: flex; justify-content: flex-end; z-index: 301; }
         .action-btn { background: #58cc02; border: none; border-bottom: 4px solid #46a302; color: white; padding: 15px 30px; font-size: 16px; font-weight: bold; border-radius: 16px; cursor: pointer; width: 100%; text-transform: uppercase; }
         .action-btn:disabled { background: #e5e5e5; border-bottom-color: #cecece; color: #afafaf; cursor: not-allowed; }
         .action-btn.info-btn { background: #1cb0f6; border-bottom-color: #1899d6; }
 
-        .feedback-container {
-            display: none;
-            position: absolute;
-            bottom: 85px;
-            left: 0;
-            width: 100%;
-            box-sizing: border-box;
-            padding: 20px 24px;
-            z-index: 300;
-            border-top-left-radius: 20px;
-            border-top-right-radius: 20px;
-            animation: slideUpPanel 0.25s ease-out;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
-        }
+        .feedback-container { display: none; position: absolute; bottom: 85px; left: 0; width: 100%; box-sizing: border-box; padding: 20px 24px; z-index: 300; border-top-left-radius: 20px; border-top-right-radius: 20px; animation: slideUpPanel 0.25s ease-out; box-shadow: 0 -5px 20px rgba(0,0,0,0.15); }
         .feedback-container.correct { background-color: #d7ffb8; border-top: 5px solid #58cc02; }
         .feedback-container.incorrect { background-color: #ffdfe0; border-top: 5px solid #ff4b4b; }
         .feedback-header { display: flex; align-items: center; font-size: 20px; font-weight: 800; margin-bottom: 6px; }
@@ -194,36 +153,102 @@
         .feedback-body { font-size: 15px; font-weight: 600; }
         .feedback-container.correct .feedback-body { color: #3c8c00; }
         .feedback-container.incorrect .feedback-body { color: #d32f2f; }
-
-        @keyframes slideUpPanel {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
+        @keyframes slideUpPanel { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
     <div class="phone-container">
-        <!-- MAPA -->
-        <div id="map-view">
-            <div class="map-header"><span id="map-lives">❤️ 5</span></div>
-            <div class="section-banner">
-                <h3>Seção 1, Módulo 1</h3>
-                <h2>Introdução à Biologia Celular</h2>
-            </div>
-            
-            <div class="path-container" id="path-scroll-area">
-                <div class="node active" id="node-1" onclick="openPreview(1, event)" style="margin-left: 0px;">1</div>
-                <div class="node locked" id="node-2" onclick="openPreview(2, event)" style="margin-left: 70px;">2</div>
-                <div class="node locked" id="node-3" onclick="openPreview(3, event)" style="margin-right: 60px;">3</div>
-                <div class="node locked" id="node-4" onclick="openPreview(4, event)" style="margin-left: 30px;">4</div>
-                <div class="node locked" id="node-5" onclick="openPreview(5, event)" style="margin-left: -50px;">👑</div>
+        <!-- CONTEÚDO PRINCIPAL -->
+        <div class="main-content">
+            <!-- TELA DO MAPA (INÍCIO) -->
+            <div id="map-view" class="view-screen">
+                <div class="map-header">
+                    <span>App Biologia</span>
+                    <span id="map-lives">❤️ 5</span>
+                </div>
+                
+                <div class="path-container" id="path-scroll-area">
+                    <div class="section-banner">
+                        <h3>Seção 1, Módulo 1</h3>
+                        <h2>Introdução à Biologia Celular</h2>
+                    </div>
+                    <div class="node active" id="node-1" onclick="openPreview(1, event)" style="margin-left: 0px;">1</div>
+                    <div class="node locked" id="node-2" onclick="openPreview(2, event)" style="margin-left: 60px;">2</div>
+                    <div class="node locked" id="node-3" onclick="openPreview(3, event)" style="margin-right: 50px;">3</div>
+                    <div class="node locked" id="node-4" onclick="openPreview(4, event)" style="margin-left: 30px;">4</div>
+                    <div class="node locked" id="node-5" onclick="openPreview(5, event)" style="margin-left: -40px;">👑</div>
+
+                    <div class="section-banner module-2">
+                        <h3>Seção 1, Módulo 2</h3>
+                        <h2>A Teia da Vida e Introdução Geral</h2>
+                    </div>
+                    <div class="node locked" id="node-6" onclick="openPreview(6, event)" style="margin-left: 0px;">6</div>
+                    <div class="node locked" id="node-7" onclick="openPreview(7, event)" style="margin-left: 60px;">7</div>
+                    <div class="node locked" id="node-8" onclick="openPreview(8, event)" style="margin-right: 50px;">8</div>
+                    <div class="node locked" id="node-9" onclick="openPreview(9, event)" style="margin-left: 30px;">9</div>
+                    <div class="node locked" id="node-10" onclick="openPreview(10, event)" style="margin-left: -40px;">👑</div>
+                </div>
+
+                <div id="duo-card" class="duo-popup">
+                    <h3 id="pop-title">Título da Aula</h3>
+                    <p id="pop-desc">Descrição da aula.</p>
+                    <button class="duo-popup-btn" onclick="startLoadingAndLesson()">CONTINUAR</button>
+                </div>
             </div>
 
-            <div id="duo-card" class="duo-popup">
-                <h3 id="pop-title">Título da Aula</h3>
-                <p id="pop-desc">Descrição da aula.</p>
-                <button class="duo-popup-btn" onclick="startLoadingAndLesson()">CONTINUAR</button>
+            <!-- TELA DE PROGRESSO -->
+            <div id="progress-view" class="view-screen" style="display: none;">
+                <div class="progress-header-title">Seu progresso até agora</div>
+                <div class="progress-sub" id="lessons-completed-text">0/10 lições concluídas</div>
+                
+                <div class="progress-card">
+                    <h3>Conclusão do Curso</h3>
+                    <p id="completion-text">Você completou 0% do curso</p>
+                    
+                    <div class="circle-container">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            <path id="progress-circle-path" class="circle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        </svg>
+                        <div class="percentage" id="percentage-text">0%</div>
+                    </div>
+
+                    <p style="font-style: italic; color: #8899a6; margin-top: 15px;">Continue trabalhando para completar todo o curso!</p>
+                </div>
             </div>
+
+            <!-- TELA DE PERFIL -->
+            <div id="profile-view" class="view-screen" style="display: none;">
+                <div style="font-size: 22px; font-weight: bold; color: white; margin-bottom: 20px;">Perfil</div>
+                
+                <div id="logged-profile-content" style="display: none;">
+                    <div class="profile-avatar-container" id="avatar-box">👤</div>
+                    <div class="profile-name" id="profile-name-text">Nome do Usuário</div>
+
+                    <div class="profile-card">
+                        <h4 id="current-course-title">Curso: Introdução à Biologia</h4>
+                        <p id="profile-section-detail">Faltam 4 lições para concluir a Seção Atual</p>
+                        <div class="profile-progress-bar">
+                            <div class="profile-progress-fill" id="profile-bar-fill"></div>
+                        </div>
+                    </div>
+
+                    <button class="google-btn-large" style="background: #ff4b4b; color: white;" onclick="logoutGoogle()">Sair da Conta</button>
+                </div>
+
+                <div id="unlogged-profile-content" class="google-login-box">
+                    <h3 style="color: white; margin-top: 0;">Entre para salvar seu progresso</h3>
+                    <p style="color: #b0c4de; font-size: 13px;">Sincronize suas conquistas com sua Conta Google.</p>
+                    <button class="google-btn-large" onclick="loginWithGoogle()">🌐 Entrar com o Google</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BARRA DE NAVEGAÇÃO INFERIOR -->
+        <div class="bottom-nav">
+            <button class="nav-item active" id="nav-home" onclick="switchTab('home')">🏠</button>
+            <button class="nav-item" id="nav-progress" onclick="switchTab('progress')">📊</button>
+            <button class="nav-item" id="nav-profile" onclick="switchTab('profile')">👤</button>
         </div>
 
         <!-- TELA DE CARREGAMENTO -->
@@ -253,6 +278,24 @@
     </div>
 
     <script>
+        // CONFIGURAÇÃO DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBS5UtbPuJubUizCS9gdmXWBAIFDzaI9IE",
+            authDomain: "prototi-b6648.firebaseapp.com",
+            projectId: "prototi-b6648",
+            storageBucket: "prototi-b6648.firebasestorage.app",
+            messagingSenderId: "795288876481",
+            appId: "1:795288876481:web:fea686e61cc5e02928eb40",
+            measurementId: "G-XM7NVL4TDN"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
         let lives = 5;
         let currentStep = 0;
         let selectedOption = null;
@@ -260,22 +303,28 @@
         let lessonSteps = [];
         let currentNodePlaying = 1;
         let errorsInSession = 0;
+        const totalLessons = 10;
 
         const biologyQuotes = [
             '"A célula é a menor unidade morfológica e funcional dos seres vivos."',
-            '"Na natureza, a complexidade celular reflete a evolução biológica."'
+            '"A Biologia é a ciência que estuda desde o menor ser vivo ao maior, conectando-se com várias áreas."'
         ];
 
         const previewData = {
-            1: { title: "Lição 1 de 5", desc: "Introdução ao Estudo das Células: Teoria Celular, Procariontes e Eucariontes." },
-            2: { title: "Lição 2 de 5", desc: "Membrana Plasmática: Estrutura, Mosaico Fluido e Transportes." },
-            3: { title: "Lição 3 de 5", desc: "Sistemas de Endomembranas: Retículo Endoplasmático, Golgi e Lisossomos." },
-            4: { title: "Lição 4 de 5", desc: "Bioenergética e Metabolismo: Mitocôndrias e Peroxissomos." },
-            5: { title: "Avaliação Final", desc: "Revisão interativa em conversa e prova final com 10 questões!" }
+            1: { title: "Módulo 1 - Lição 1", desc: "Introdução ao Estudo das Células: Teoria Celular e Procariontes." },
+            2: { title: "Módulo 1 - Lição 2", desc: "Membrana Plasmática: Estrutura, Mosaico Fluido e Transportes." },
+            3: { title: "Módulo 1 - Lição 3", desc: "Sistemas de Endomembranas: Retículo, Golgi e Lisossomos." },
+            4: { title: "Módulo 1 - Lição 4", desc: "Bioenergética e Metabolismo: Mitocôndrias e ATP." },
+            5: { title: "Módulo 1 - Avaliação Final", desc: "Revisão interativa em conversa e prova final com 10 questões!" },
+            6: { title: "Módulo 2 - Lição 1", desc: "A Conexão entre as Ciências: Interdisciplinaridade na Biologia." },
+            7: { title: "Módulo 2 - Lição 2", desc: "Os Ramos de Estudo da Vida: Ecologia, Botânica e Zoologia." },
+            8: { title: "Módulo 2 - Lição 3", desc: "A Árvore da Vida e a Evolução: ancestral comum e arbusto evolutivo." },
+            9: { title: "Módulo 2 - Lição 4", desc: "Genética Básica e Biomoléculas: DNA, mutações e seleção natural." },
+            10: { title: "Módulo 2 - Avaliação Final", desc: "Revisão e prova final do Módulo 2 com 10 questões!" }
         };
 
         function formatTextWithBold(text) {
-            const keywords = ["célula", "células", "membrana plasmática", "proteínas", "mitocôndrias", "ATP", "metabolismo", "núcleo", "vírus", "lisossomos", "ribossomos"];
+            const keywords = ["célula", "células", "membrana plasmática", "proteínas", "mitocôndrias", "ATP", "metabolismo", "núcleo", "biologia", "ecologia", "evolução", "dna", "genes"];
             let formatted = text;
             keywords.forEach(kw => {
                 const regex = new RegExp(`\\b(${kw})\\b`, 'gi');
@@ -322,8 +371,8 @@
                 { type: "quiz", title: "O que diferencia a montagem dos peroxissomos em relação aos lisossomos?", options: ["São montados a partir de proteínas sintetizadas em ribossomos livres e importadas completas", "Derivam diretamente do brotamento da face trans do Golgi", "Possuem genoma circular próprio idêntico ao das bactérias"], correct: 0 }
             ],
             5: [
-                { type: "info", title: "💬 Conversa de Revisão", text: "<b>Professor:</b> Olá! Vamos revisar os principais conceitos do Módulo 1.<br><br><b>Aluno:</b> Vimos que a célula é a unidade fundamental e que procariontes e eucariontes diferem pela presença de núcleo.", img: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=400&q=80" },
-                { type: "info", title: "💬 Conversa de Revisão", text: "<b>Professor:</b> Perfeito! E sobre membranas, organelas e bioenergética?<br><br><b>Aluno:</b> A membrana segue o mosaico fluido, as endomembranas processam proteínas e as mitocôndrias geram ATP!", img: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Revisão - Módulo 1", text: "<b>Professor:</b> Olá! Vamos revisar os principais conceitos do Módulo 1.<br><br><b>Aluno:</b> Vimos que a célula é a unidade fundamental e que procariontes e eucariontes diferem pela presença de núcleo.", img: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Revisão - Módulo 1", text: "<b>Professor:</b> Perfeito! E sobre membranas, organelas e bioenergética?<br><br><b>Aluno:</b> A membrana segue o mosaico fluido, as endomembranas processam proteínas e as mitocôndrias geram ATP!", img: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80" },
                 { type: "quiz", title: "[Avaliação 1/10] Segundo a Teoria Celular clássica, qual é a afirmativa correta?", options: ["As células são as unidades morfológicas e fisiológicas de todos os organismos vivos", "Os vírus são considerados a menor unidade viva autônoma", "As células surgem espontaneamente da matéria inorgânica"], correct: 0 },
                 { type: "quiz", title: "[Avaliação 2/10] Qual estrutura diferencia fundamentalmente as células vegetais das animais?", options: ["A presença de parede celular, vacúolos e plastídios", "A presença de núcleo delimitado por envoltório nuclear", "A presença de mitocôndrias produtoras de ATP"], correct: 0 },
                 { type: "quiz", title: "[Avaliação 3/10] O que garante a seletividade e fluidez da membrana plasmática?", options: ["A bicamada de fosfolipídios associada a proteínas integrais e periféricas móveis", "A rigidez absoluta de uma camada contínua de celulose", "A ausência total de lipídios polares na estrutura"], correct: 0 },
@@ -334,8 +383,232 @@
                 { type: "quiz", title: "[Avaliação 8/10] Qual é a principal função da lâmina nuclear subjacente ao núcleo?", options: ["Fornecer suporte estrutural ao envoltório nuclear e auxiliar na fixação da cromatina", "Realizar a síntese das subunidades ribossomais 40S e 60S", "Secretar lipídios complexos para a matriz extracelular"], correct: 0 },
                 { type: "quiz", title: "[Avaliação 9/10] O que caracteriza a heterocromatina em comparação com a eucromatina?", options: ["Encontra-se altamente condensada e inativa para a transcrição", "Está descondensada e ativa na transcrição de genes", "É exclusiva de células procariontes e vírus"], correct: 0 },
                 { type: "quiz", title: "[Avaliação 10/10] Durante qual fase do ciclo celular ocorre a duplicação do DNA nuclear?", options: ["Na fase S (síntese) da interfase", "Na fase M (mitose) durante a metáfase", "Na fase G2 de preparação final"], correct: 0 }
+            ],
+            6: [
+                { type: "info", title: "Interdisciplinaridade", text: "A biologia conecta-se com a química (fotossíntese), física (tensão superficial da água), geologia (rochas e solo) e sociologia (seres humanos).", img: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Uma Grande Rede", text: "Enxergar a biologia fora de caixinhas separadas permite compreender os padrões dinâmicos e interações de todo o planeta.", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "Com quais áreas a biologia interliga-se de acordo com o estudo integrado?", options: ["Química, física, geologia e sociologia", "Apenas matemática pura e lógica abstrata", "Exclusivamente física quântica e astronomia"], correct: 0 },
+                { type: "quiz", title: "Como a física se relaciona com os fenômenos biológicos na natureza?", options: ["Através de conceitos como a tensão superficial da água", "Através da formação exclusiva de rochas magmáticas", "Através da estruturação social humana"], correct: 0 },
+                { type: "quiz", title: "Qual é o problema de enxergar as disciplinas científicas em caixinhas totalmente separadas?", options: ["Dificulta a compreensão contextualizada e integrada do estudo da vida", "Torna o aprendizado rápido e automatizado demais", "Gera uma precisão matemática absoluta nas teorias"], correct: 0 },
+                { type: "quiz", title: "De que maneira a geologia contribui para o entendimento abordado?", options: ["Estudando as rochas e o solo onde os organismos interagem", "Analisando a estrutura celular dos tecidos animais", "Calculando a velocidade de locomoção dos protozoários"], correct: 0 },
+                { type: "quiz", title: "O que a sociologia estuda dentro do contexto de integração com a biologia?", options: ["As interações dos seres humanos como parte integrante da natureza", "A composição química das biomoléculas proteicas", "A contração das fibras musculares esqueléticas"], correct: 0 }
+            ],
+            7: [
+                { type: "info", title: "Ramos da Biologia", text: "A ecologia estuda as interações com o meio, enquanto botânica, zoologia, micologia e microbiologia focam nos diferentes grupos de seres vivos.", img: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Morfologia e Histologia", text: "Para compreender os organismos, estudamos sua estrutura (morfologia), funcionamento (fisiologia) e os tecidos corporais (histologia).", img: "https://images.unsplash.com/photo-1579165466941-2f91e65f74cb?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "O que estuda especificamente o ramo da Ecologia?", options: ["Os seres vivos e sua interação com o ambiente onde vivem", "Apenas a estrutura microscópica dos tecidos vegetais", "A divisão celular das bactérias procariontes"], correct: 0 },
+                { type: "quiz", title: "Qual é o foco de estudo da disciplina de Histologia?", options: ["O estudo detalhado dos tecidos biológicos", "O desenvolvimento embrionário a partir de uma célula", "A classificação moderna dos cinco reinos"], correct: 0 },
+                { type: "quiz", title: "O que investiga a Embriologia nos organismos multicelulares?", options: ["O desenvolvimento de um organismo a partir de uma única célula inicial", "A respiração aeróbia e produção de ATP nas mitocôndrias", "O transporte passivo de solutos na membrana plasmática"], correct: 0 },
+                { type: "quiz", title: "Como se relacionam a morfologia e a fisiologia na biologia?", options: ["Possuem relação muito próxima, estudando estrutura e funcionamento", "São áreas completamente opostas e sem conexão", "A fisiologia substitui totalmente a necessidade da morfologia"], correct: 0 },
+                { type: "quiz", title: "Qual ciência dedica-se ao estudo científico dos fungos?", options: ["Micologia", "Botânica", "Zoologia"], correct: 0 }
+            ],
+            8: [
+                { type: "info", title: "A Árvore da Vida", text: "A evolução mostra que todas as espécies compartilham um ancestral comum, formando um grande arbusto de ramificações e não uma linha reta.", img: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Diversidade Evolutiva", text: "Desenvolver cérebros grandes ou alta complexidade é apenas um dos muitos caminhos possíveis que a vida seguiu ao longo do tempo.", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "Como o processo evolutivo das espécies é representado na biologia moderna?", options: ["Como um grande arbusto ramificado de possibilidades", "Como uma linha reta progressiva em direção única", "Como um círculo estático de espécies imutáveis"], correct: 0 },
+                { type: "quiz", title: "O que significa a ideia de um ancestral comum para os seres vivos?", options: ["Que todas as espécies derivam de formas anteriores compartilhadas", "Que os vírus deram origem a todas as células eucariontes", "Que os animais surgiram independentemente de plantas e fungos"], correct: 0 },
+                { type: "quiz", title: "Qual é a principal constatação sobre o desenvolvimento de cérebros grandes na evolução?", options: ["É apenas um dos muitos caminhos que a vida seguiu entre milhares de possibilidades", "É o objetivo final obrigatório de qualquer ser vivo", "Acontece obrigatoriamente em todos os organismos unicelulares"], correct: 0 },
+                { type: "quiz", title: "O que grande parte dos seres vivos continuou sendo após bilhões de anos?", options: ["Unicelulares, sobrevivendo muito bem sem cérebros complexos", "Animais pluricelulares de grande porte", "Organismos estritamente anaeróbicos obrigatórios"], correct: 0 },
+                { type: "quiz", title: "O que a Teoria da Evolução ajuda a explicar nos seres vivos?", options: ["Como as espécies mudam e se diversificam ao longo do tempo", "Como ocorre a replicação instantânea do DNA nuclear", "Como a membrana plasmática realiza transporte ativo"], correct: 0 }
+            ],
+            9: [
+                { type: "info", title: "Genética e Mutações", text: "Os genes codificam proteínas. Mutações aleatórias e a seleção natural impulsionam as mudanças e a adaptação das espécies.", img: "https://images.unsplash.com/photo-1579165466941-2f91e65f74cb?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Biomoléculas", text: "As biomoléculas como proteínas, lipídios e carboidratos são formadas predominantemente por carbono, hidrogênio, oxigênio e nitrogênio.", img: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "O que são mutações no contexto da genética e evolução?", options: ["Mudanças aleatórias na informação codificada nos genes", "Modificações temporárias causadas por exercício físico", "A duplicação perfeita das organelas citoplasmáticas"], correct: 0 },
+                { type: "quiz", title: "Qual é o papel fundamental dos genes nos organismos vivos?", options: ["Servir de base informacional para a produção de proteínas", "Armazenar energia química em ligações de ATP", "Bombear íons de sódio para fora da célula"], correct: 0 },
+                { type: "quiz", title: "O que define o mecanismo de Seleção Natural?", options: ["A sobrevivência diferencial de organismos com características hereditárias favoráveis", "A eliminação total de mutações benéficas no DNA", "A reprodução idêntica de todas as células sem variação"], correct: 0 },
+                { type: "quiz", title: "Quais são os quatro átomos mais abundantes nas biomoléculas dos seres vivos?", options: ["Carbono, hidrogênio, oxigênio e nitrogênio", "Sódio, potássio, cálcio e cloro", "Ferro, cobre, zinco e magnésio"], correct: 0 },
+                { type: "quiz", title: "O que representam as grandes moléculas chamadas biomoléculas?", options: ["Proteínas, lipídios e carboidratos que formam os seres vivos", "Organículas membranosas produtoras de ATP", "Átomos isolados sem ligação química"], correct: 0 }
+            ],
+            10: [
+                { type: "info", title: "Revisão - Módulo 2", text: "<b>Professor:</b> Olá! Vamos revisar o Módulo 2 sobre a teia da vida.<br><br><b>Aluno:</b> Vimos a interdisciplinaridade, os ramos da biologia, a árvore evolutiva e a genética básica!", img: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=400&q=80" },
+                { type: "info", title: "Revisão - Módulo 2", text: "<b>Professor:</b> Excelente! Tudo está conectado, desde a ecologia até as biomoléculas.<br><br><b>Aluno:</b> Sim! Genética, mutações e seleção natural explicam a diversidade dos seres vivos!", img: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80" },
+                { type: "quiz", title: "[Avaliação 1/10] Como a biologia se conecta com outras ciências no estudo integrado?", options: ["Relacionando-se com química, física, geologia e sociologia", "Trabalhando de forma isolada sem nenhuma conexão externa", "Limitando-se estritamente à matemática pura"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 2/10] Qual é o principal objetivo da Ecologia?", options: ["Estudar os seres vivos e sua interação com o ambiente", "Analisar exclusivamente a estrutura interna dos vírus", "Sintetizar proteínas complexas no laboratório"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 3/10] O que estuda a Histologia nos organismos pluricelulares?", options: ["Os tecidos biológicos que formam os órgãos", "O ecossistema e as cadeias alimentares", "A origem química da matéria inorgânica"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 4/10] Como a evolução é representada graficamente na biologia?", options: ["Como um arbusto ramificado de diversidade", "Como uma única escada evolutiva linear perfeita", "Como um círculo fechado de espécies imutáveis"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 5/10] O que são os genes segundo a biologia molecular?", options: ["Unidades de informação para a produção de proteínas", "Organelas responsáveis pela respiração celular", "Fibras de actina e miosina do citoesqueleto"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 6/10] O que causam as mutações no material genético?", options: ["Mudanças aleatórias na informação que podem gerar variabilidade", "A destruição instantânea de todas as células do corpo", "A transformação imediata de procariontes em vírus"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 7/10] Qual é o papel da Seleção Natural na evolução?", options: ["Favorecer a sobrevivência de organismos com características vantajosas", "Manter todas as espécies idênticas ao longo dos milênios", "Eliminar completamente a necessidade de DNA"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 8/10] Quais elementos químicos formam principalmente as biomoléculas?", options: ["Carbono, hidrogênio, oxigênio e nitrogênio", "Ouro, prata, platina e chumbo", "Sódio, potássio, fósforo e enxofre apenas"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 9/10] Qual é a importância de estudar a Embriologia?", options: ["Compreender o desenvolvimento de um organismo a partir de uma célula", "Analisar as propriedades físicas da água e solos", "Classificar as rochas da crosta terrestre"], correct: 0 },
+                { type: "quiz", title: "[Avaliação 10/10] O que caracteriza a visão integrada da Biologia?", options: ["Conectar o macro (ecologia) ao micro (células e biomoléculas)", "Separar rigidamente cada assunto em gavetas isoladas", "Ignorar a influência dos seres humanos no planeta"], correct: 0 }
             ]
         };
+
+        // CONTROLE DE ABAS
+        function switchTab(tab) {
+            const mapView = document.getElementById('map-view');
+            const progressView = document.getElementById('progress-view');
+            const profileView = document.getElementById('profile-view');
+            
+            const navHome = document.getElementById('nav-home');
+            const navProgress = document.getElementById('nav-progress');
+            const navProfile = document.getElementById('nav-profile');
+
+            mapView.style.display = 'none';
+            progressView.style.display = 'none';
+            profileView.style.display = 'none';
+
+            navHome.classList.remove('active');
+            navProgress.classList.remove('active');
+            navProfile.classList.remove('active');
+
+            if (tab === 'home') {
+                mapView.style.display = 'flex';
+                navHome.classList.add('active');
+            } else if (tab === 'progress') {
+                progressView.style.display = 'flex';
+                navProgress.classList.add('active');
+                updateProgressScreen();
+            } else if (tab === 'profile') {
+                profileView.style.display = 'flex';
+                navProfile.classList.add('active');
+                updateProfileScreen();
+            }
+        }
+
+        function updateProgressScreen() {
+            let completedCount = 0;
+            document.querySelectorAll('.node').forEach((node) => {
+                if (node.classList.contains('completed')) {
+                    completedCount++;
+                }
+            });
+
+            let percent = Math.round((completedCount / totalLessons) * 100);
+            document.getElementById('lessons-completed-text').innerText = `${completedCount}/${totalLessons} lições concluídas`;
+            document.getElementById('completion-text').innerText = `Você completou ${percent}% do curso`;
+            document.getElementById('percentage-text').innerText = `${percent}%`;
+
+            const circlePath = document.getElementById('progress-circle-path');
+            circlePath.setAttribute('stroke-dasharray', `${percent}, 100`);
+        }
+
+        function updateProfileScreen() {
+            const loggedContent = document.getElementById('logged-profile-content');
+            const unloggedContent = document.getElementById('unlogged-profile-content');
+
+            if (currentUser) {
+                loggedContent.style.display = 'block';
+                unloggedContent.style.display = 'none';
+                
+                document.getElementById('profile-name-text').innerText = currentUser.displayName || "Estudante de Biologia";
+                
+                if (currentUser.photoURL) {
+                    document.getElementById('avatar-box').innerHTML = `<img src="${currentUser.photoURL}" alt="Avatar">`;
+                }
+
+                let completedCount = 0;
+                document.querySelectorAll('.node').forEach((node) => {
+                    if (node.classList.contains('completed')) completedCount++;
+                });
+
+                let courseTitle = completedCount < 5 ? "Curso: Introdução à Biologia Celular" : "Curso: A Teia da Vida e Evolução";
+                let remainingInSec = completedCount < 5 ? (5 - completedCount) : (10 - completedCount);
+                let percentSec = Math.round((completedCount / totalLessons) * 100);
+
+                document.getElementById('current-course-title').innerText = courseTitle;
+                document.getElementById('profile-section-detail').innerText = remainingInSec > 0 ? `Faltam ${remainingInSec} lições para concluir a Seção Atual` : `Seção Concluída com Sucesso! 👑`;
+                document.getElementById('profile-bar-fill').style.width = `${percentSec}%`;
+
+            } else {
+                loggedContent.style.display = 'none';
+                unloggedContent.style.display = 'block';
+            }
+        }
+
+        // LOGIN COM GOOGLE (VIA REDIRECIONAMENTO)
+        function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithRedirect(provider).catch((error) => {
+                console.error("Erro no login:", error);
+                alert("Erro ao entrar com o Google: " + error.message);
+            });
+        }
+
+        function logoutGoogle() {
+            auth.signOut().then(() => {
+                currentUser = null;
+                updateProfileScreen();
+            });
+        }
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                loadCloudProgress();
+                updateProfileScreen();
+            }
+        });
+
+        function saveProgress() {
+            let completedNodes = [];
+            document.querySelectorAll('.node').forEach((node, idx) => {
+                if (node.classList.contains('completed')) {
+                    completedNodes.push(idx + 1);
+                }
+            });
+            localStorage.setItem('bio_completed_nodes', JSON.stringify(completedNodes));
+            if (currentUser) {
+                db.collection("users").doc(currentUser.uid).set({
+                    completedNodes: completedNodes,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+        }
+
+        function loadCloudProgress() {
+            if (currentUser) {
+                db.collection("users").doc(currentUser.uid).get().then((doc) => {
+                    if (doc.exists && doc.data().completedNodes) {
+                        applyProgress(doc.data().completedNodes);
+                    } else {
+                        loadLocalProgress();
+                    }
+                }).catch(() => {
+                    loadLocalProgress();
+                });
+            } else {
+                loadLocalProgress();
+            }
+        }
+
+        function loadLocalProgress() {
+            let savedCompleted = localStorage.getItem('bio_completed_nodes');
+            if (savedCompleted) {
+                applyProgress(JSON.parse(savedCompleted));
+            }
+        }
+
+        function applyProgress(completedNodes) {
+            completedNodes.forEach(id => {
+                const btn = document.getElementById(`node-${id}`);
+                if (btn) {
+                    btn.classList.remove('active', 'locked');
+                    btn.classList.add('completed');
+                    btn.innerHTML = (id === 5 || id === 10) ? '👑' : '⭐';
+                }
+            });
+
+            let maxCompleted = Math.max(...completedNodes);
+            let nextNodeId = maxCompleted + 1;
+            if (nextNodeId <= totalLessons) {
+                document.querySelectorAll('.node').forEach(n => {
+                    if (!n.classList.contains('completed')) n.classList.add('locked');
+                    n.classList.remove('active');
+                });
+                const nextBtn = document.getElementById(`node-${nextNodeId}`);
+                if (nextBtn) {
+                    nextBtn.classList.remove('locked');
+                    nextBtn.classList.add('active');
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadLocalProgress();
+        });
 
         function openPreview(nodeId, event) {
             currentNodePlaying = nodeId;
@@ -381,7 +654,6 @@
             document.getElementById('duo-card').style.display = 'none';
             errorsInSession = 0;
             document.getElementById('quote-container').innerHTML = biologyQuotes[Math.floor(Math.random() * biologyQuotes.length)];
-            document.getElementById('map-view').style.display = 'none';
             document.getElementById('loading-view').style.display = 'flex';
 
             setTimeout(() => {
@@ -399,7 +671,6 @@
 
         function quitLesson() {
             errorsInSession = 0;
-            document.getElementById('map-view').style.display = 'flex';
             document.getElementById('lesson-view').style.display = 'none';
         }
 
@@ -408,7 +679,7 @@
             if (currentBtn) {
                 currentBtn.classList.remove('active');
                 currentBtn.classList.add('completed');
-                currentBtn.innerHTML = currentNodePlaying === 5 ? '👑' : '⭐'; 
+                currentBtn.innerHTML = (currentNodePlaying === 5 || currentNodePlaying === 10) ? '👑' : '⭐'; 
             }
 
             const nextBtn = document.getElementById(`node-${currentNodePlaying + 1}`);
@@ -417,6 +688,7 @@
                 nextBtn.classList.add('active');
             }
 
+            saveProgress();
             quitLesson();
         }
 
@@ -440,8 +712,17 @@
                 nextBtn.className = "action-btn info-btn";
                 nextBtn.disabled = false;
             } else if (step.type === "quiz") {
+                let originalOptions = [...step.options];
+                let correctText = originalOptions[step.correct];
+                
+                let shuffledOptions = [...originalOptions].sort(() => Math.random() - 0.5);
+                let newCorrectIndex = shuffledOptions.indexOf(correctText);
+                
+                step.runtimeCorrect = newCorrectIndex;
+                step.runtimeOptions = shuffledOptions;
+
                 let html = `<h2 class="lesson-title">${step.title}</h2><div class="options">`;
-                step.options.forEach((opt, idx) => {
+                shuffledOptions.forEach((opt, idx) => {
                     html += `<button class="option-btn" onclick="selectOption(${idx}, this)">${opt}</button>`;
                 });
                 container.innerHTML = html + `</div>`;
@@ -484,7 +765,7 @@
             answered = true;
             feedbackArea.style.display = 'block';
 
-            if (selectedOption === step.correct) {
+            if (selectedOption === step.runtimeCorrect) {
                 feedbackArea.className = "feedback-container correct";
                 feedbackArea.innerHTML = `
                     <div class="feedback-header">✨ Excelente!</div>
@@ -502,7 +783,7 @@
                 feedbackArea.className = "feedback-container incorrect";
                 feedbackArea.innerHTML = `
                     <div class="feedback-header">❌ Resposta incorreta</div>
-                    <div class="feedback-body">A resposta certa era: <b>${step.options[step.correct]}</b></div>
+                    <div class="feedback-body">A resposta certa era: <b>${step.runtimeOptions[step.runtimeCorrect]}</b></div>
                 `;
                 nextBtn.innerText = "ENTENDI";
                 nextBtn.style.background = "#ff4b4b";
